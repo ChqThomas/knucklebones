@@ -1,4 +1,5 @@
 import { Meteor } from 'meteor/meteor';
+import { WebApp } from 'meteor/webapp';
 
 import http from 'http';
 import {LocalPresence, Server} from "colyseus";
@@ -6,29 +7,15 @@ import { LobbyRoom } from "colyseus";
 import {MyRoom} from "/imports/api/rooms/MyRoom";
 import { URL } from "url";
 
-const PORT = parseInt(process.env.SOCKET_PORT) || 3003;
-
-// Client-side config
-WebAppInternals.addStaticJs(`
-  window.socketPort = ${PORT};
-`);
+const PORT = parseInt(process.env.WS_PORT) || 3000;
 
 Meteor.startup(() => {
   let rootUrl = new URL(process.env.ROOT_URL);
-  const protocol = rootUrl.protocol === "https:" ? "wss" : "ws";
-  Meteor.settings.public.WS_URL = `${protocol}://${rootUrl.hostname}:${PORT}`;
+  Meteor.settings.public.WS_URL = `${rootUrl.protocol.replace("http", "ws")}//${rootUrl.hostname}:${PORT}`;
 
-  const server = http.createServer();
-  const gameServer = new Server({ server, presence: new LocalPresence() });
+  const gameServer = new Server({ server: WebApp.httpServer, presence: new LocalPresence() });
 
   gameServer.define("lobby", LobbyRoom);
 
   gameServer.define("game", MyRoom).enableRealtimeListing();
-
-  try {
-    gameServer.listen(PORT);
-  } catch (e) {
-    console.error(e);
-  }
-
 });
