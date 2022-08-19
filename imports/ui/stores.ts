@@ -5,8 +5,9 @@ import { Client } from "colyseus.js";
 import {States} from "/imports/api/machine";
 import {MyRoomState} from "/imports/api/rooms/schema/MyRoomState";
 import {Room} from "colyseus.js/dist/colyseus";
+import { Meteor } from 'meteor/meteor'
 
-export const colyseus: Readable<Client> = readable(new Client("ws://localhost:" + (window.socketPort || 3003)));
+export const colyseus: Readable<Client> = readable(new Client(Meteor.settings.public.WS_URL));
 
 abstract class ReactiveStore<T> {
     public value: Writable<T>;
