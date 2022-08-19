@@ -14,7 +14,9 @@ WebAppInternals.addStaticJs(`
 `);
 
 Meteor.startup(() => {
-  Meteor.settings.public.WS_URL = `ws://${new URL(process.env.ROOT_URL).hostname}:${PORT}`;
+  let rootUrl = new URL(process.env.ROOT_URL);
+  const protocol = rootUrl.protocol === "https:" ? "wss" : "ws";
+  Meteor.settings.public.WS_URL = `${protocol}://${rootUrl.hostname}:${PORT}`;
 
   const server = http.createServer();
   const gameServer = new Server({ server, presence: new LocalPresence() });
