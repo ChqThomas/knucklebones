@@ -8,7 +8,7 @@
   export let board: Board;
   export let mirrored = false;
 
-  $: flattenedBoard = [...board.col1, ...board.col2, ...board.col3];
+  $: cols = [board.col1, board.col2, board.col3];
 
   function addToBoard(index) {
     $room.send("addToBoard", <Payload>{
@@ -19,16 +19,18 @@
 </script>
 
 <div class="grid gap-4" class:mirrored>
-  {#each flattenedBoard as diceValue, index}
-    <div class="dice-location" on:click={() => addToBoard(Math.ceil((index + 1) / 3))} data-index="{index}">
-      {#if diceValue}
-        <Dice value="{diceValue}"/>
-      {/if}
-    </div>
+  {#each cols as col, index}
+    {#each col as diceValue}
+      <div class="dice-location" on:click={() => addToBoard(index + 1)}>
+        {#if diceValue}
+          <Dice value="{diceValue}" occurences="{col.filter(d => d === diceValue).length}"/>
+        {/if}
+      </div>
+    {/each}
   {/each}
-  <BoardScore col="{board.col1}"/>
-  <BoardScore col="{board.col2}"/>
-  <BoardScore col="{board.col3}"/>
+  {#each cols as col}
+    <BoardScore {col}/>
+  {/each}
 </div>
 
 <style>

@@ -19,11 +19,45 @@ export default class Board extends Schema {
     }
 
     removeDicesFromColumn(diceValue: DiceValue, index: ColumnIndex) {
-        console.log("remove ", diceValue, index);
         const filteredColumn = this[`col${index}`].filter(d => d !== diceValue);
-        console.log(filteredColumn);
         this[`col${index}`] = Object.assign(new Array(3).fill(0), filteredColumn);
-        console.log(this[`col${index}`]);
+    }
+
+    getAllValues() {
+        return [...this.col1.values(), ...this.col2.values(), ...this.col3.values()]
+    }
+
+    isFull() {
+        return !this.getAllValues().some(d => d === 0);
+    }
+
+    getColAsArray(index: ColumnIndex) {
+        return [...this[`col${index}`].values()];
+    }
+
+    getColumnIndexes(): ColumnIndex[] {
+        return [1, 2, 3];
+    }
+
+    getAvailableColumns(): ColumnIndex[] {
+        const available = [];
+        [1, 2, 3].forEach((index: ColumnIndex) => {
+            if (this.getColAsArray(index).some(d => d === 0)) {
+                available.push(index);
+            }
+        })
+        return available;
+    }
+
+    getColContainingValue(value: DiceValue, available = false): ColumnIndex|null {
+        let colIndex = null;
+        const cols = available ? this.getAvailableColumns() : this.getColumnIndexes();
+        cols.forEach((index) => {
+            if (this.getColAsArray(index).some(d => d === value)) {
+                colIndex = index;
+            }
+        });
+        return colIndex;
     }
 }
         

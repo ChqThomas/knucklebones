@@ -28,9 +28,9 @@
     });
   })
 
-  async function createRoom() {
+  async function createRoom(solo = false) {
     // We create the room and leave it immediately.
-    const room = await $colyseus.create("game");
+    const room = await $colyseus.create("game", { solo });
     await room.leave(false);
     navigate(`game/${room.id}`, { replace: true });
   }
@@ -58,6 +58,7 @@
   </div>
 
   <div class="text-center">
-    <button class="btn btn-primary" on:click={() => createRoom()}>Create game</button>
+    <button class="btn btn-primary" on:click={() => createRoom(false)}>Create game</button>
+    <button class="btn btn-secondary" on:click={() => createRoom(true)}>Create solo game</button>
   </div>
 </div>

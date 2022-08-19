@@ -14,6 +14,7 @@ export default class Player extends Schema {
     @type("number") updateHash: number = 0;
     @type("number") dice: DiceValue = 1;
     client: Client|null = null;
+    isBot = false;
 
     async pickDice() {
         await this.animateDice();

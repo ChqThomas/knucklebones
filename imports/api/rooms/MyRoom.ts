@@ -10,21 +10,25 @@ import type Player from "/imports/api/rooms/schema/Player";
 
 // Commands
 import {OnJoinCommand} from "/imports/api/rooms/commands/onJoin";
-import {addBot} from "/imports/api/botGenerator";
+import {addBot, playTurn} from "/imports/api/botGenerator";
 import {AddToBoard} from "/imports/api/rooms/commands/addToBoard";
+
+type CreateOptions = {
+  solo: boolean
+}
 
 export class MyRoom extends Room<MyRoomState> {
 
   LOBBY_CHANNEL = "$mylobbyChannel"
   dispatcher = new Dispatcher(this);
+  maxClients = 2;
 
-  async onCreate () {
+  async onCreate (options: CreateOptions) {
     this.roomId = await this.generateRoomId();
     this.setState(new MyRoomState());
 
-    // add 1 bot
-    for (let i = 0; i < 1; i++) {
-      //addBot(this);
+    if (options.solo) {
+      addBot(this);
     }
 
     this.registerMessages();
@@ -141,6 +145,9 @@ export class MyRoom extends Room<MyRoomState> {
     const currentPlayer = this.state.getCurrentPlayer();
     if (currentPlayer) {
       await currentPlayer.pickDice();
+      if (currentPlayer.isBot) {
+        await playTurn(this, currentPlayer);
+      }
     }
   }
 
