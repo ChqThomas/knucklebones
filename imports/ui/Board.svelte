@@ -1,92 +1,74 @@
 <script lang="ts">
   import Dice from "/imports/ui/Dice.svelte";
   import Board from "/imports/api/rooms/schema/Board";
-  import {room} from "/imports/ui/stores";
+  import {room, gameLoaded} from "/imports/ui/stores";
   import type {Payload} from "/imports/api/rooms/commands/addToBoard";
   import BoardScore from "/imports/ui/BoardScore.svelte";
+  import {fly, scale, fade} from "svelte/transition";
+  import type {DiceValue} from "/imports/api/rooms/schema/Player";
 
   export let board: Board;
   export let mirrored = false;
+  export let ready = false;
+  export let playerPlate: HTMLElement|null = null;
+  export let opponentDice: DiceValue;
 
   $: cols = [board.col1, board.col2, board.col3];
 
   function addToBoard(index) {
-    $room.send("addToBoard", <Payload>{
-      index
-    });
+    if (ready) {
+      $room.send("addToBoard", <Payload>{
+        index
+      });
+    }
   }
+
+  const animationIn = (node, args) => {
+    if (args.init) {
+      return fade(node);
+    } else {
+      if (playerPlate?.querySelector(".face")) {
+      } else {
+        let y = 100;
+        if (playerPlate?.classList.contains("opponent-plate")) {
+          y = y * -1;
+        }
+        return fly(node, {
+          delay: 0,
+          y,
+          opacity: 1
+        });
+      }
+    }
+  };
+
+  const animationOut = (node, args) => {
+    // if removed => scale out
+    // if preceding children removed => no transition to create a translation effect
+    if (args.diceValue === opponentDice) {
+      return scale(node, {
+        delay: 300
+      });
+    }
+  };
 
 </script>
 
-<div class="grid gap-4" class:mirrored>
+<div class="flex gap-y-2">
   {#each cols as col, index}
-    {#each col as diceValue}
-      <div class="dice-location" on:click={() => addToBoard(index + 1)}>
-        {#if diceValue}
-          <Dice value="{diceValue}" occurences="{col.filter(d => d === diceValue).length}"/>
-        {/if}
-      </div>
-    {/each}
-  {/each}
-  {#each cols as col}
-    <BoardScore {col}/>
+    <div class="dice-column flex gap-2 py-1 px-1 {mirrored ? 'flex-col-reverse pt-3' : 'flex-col pb-3'}" on:click={() => addToBoard(index + 1)} class:ready>
+      <BoardScore {col}/>
+      {#each col as diceValue, i}
+        <div class="dice-location">
+          {#if diceValue}
+            {#key diceValue + "_" + i}
+              <div in:animationIn={{ init: !$gameLoaded }} out:animationOut={{ diceValue }}>
+                <Dice value="{diceValue}" occurences="{col.filter(d => d === diceValue).length}" {playerPlate}/>
+              </div>
+            {/key}
+          {/if}
+        </div>
+      {/each}
+    </div>
   {/each}
 </div>
-
-<style>
-  .grid {
-    grid-template-areas:
-        "x y z"
-		"a d g"
-		"b e h"
-		"c f i";
-  }
-
-  .grid.mirrored {
-    grid-template-areas:
-		"c f i"
-		"b e h"
-		"a d g"
-        "x y z";
-  }
-
-  .dice-location:nth-child(1) {
-    grid-area: a;
-  }
-  .dice-location:nth-child(2) {
-    grid-area: b;
-  }
-  .dice-location:nth-child(3) {
-    grid-area: c;
-  }
-
-  .dice-location:nth-child(4) {
-    grid-area: d;
-  }
-  .dice-location:nth-child(5) {
-    grid-area: e;
-  }
-  .dice-location:nth-child(6) {
-    grid-area: f;
-  }
-
-  .dice-location:nth-child(7) {
-    grid-area: g;
-  }
-  .dice-location:nth-child(8) {
-    grid-area: h;
-  }
-  .dice-location:nth-child(9) {
-    grid-area: i;
-  }
-
-  .dice-location:nth-child(10) {
-    grid-area: x;
-  }
-  .dice-location:nth-child(11) {
-    grid-area: y;
-  }
-  .dice-location:nth-child(12) {
-    grid-area: z;
-  }
-</style>

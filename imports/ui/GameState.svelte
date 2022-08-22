@@ -7,11 +7,11 @@
 </script>
 
 <div class="w-full flex items-center flex-col h-[40px]">
-    {#if $gameState === States.Lobby}
+    {#if $gameState === States.Waiting}
         En attente du début de la partie
     {:else if $gameState === States.Preparation}
         Phase de préparation
-    {:else if $gameState === States.Fight}
+    {:else if $gameState === States.Play}
         {#if currentOpponent}
             VS {currentOpponent.username}
         {:else}

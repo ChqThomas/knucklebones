@@ -19,7 +19,7 @@ export class OnJoinCommand extends Command<MyRoom, Payload> {
         if (options.username) {
             let player = new Player();
             player.id = client.sessionId;
-            player.username = options.username;
+            player.username = ` Player ${this.room.getPlayersArray().filter(p => !p.isBot).length + 1}`;
             player.client = client;
 
             client.send("connected", { sessionId: client.sessionId });
@@ -32,7 +32,8 @@ export class OnJoinCommand extends Command<MyRoom, Payload> {
                 const opponent = this.room.getPlayersArray().filter(p => p.id !== player.id)[0];
                 player.opponentId = opponent.id;
                 opponent.opponentId = player.id;
-                this.room.nextTurn();
+                await new Promise((resolve) => setTimeout(resolve, 250));
+                await this.room.startGame();
             }
         }
     }

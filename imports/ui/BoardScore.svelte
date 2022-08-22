@@ -1,8 +1,10 @@
 <script lang="ts">
   import * as _ from "lodash";
   import {tweened} from "svelte/motion";
+  import {getColumnScore} from "/imports/api/scoring";
+  import type {DiceValue} from "/imports/api/rooms/schema/Player";
 
-  export let col: number[];
+  export let col: DiceValue[];
   let score = 0;
   let previousScore = score;
 
@@ -11,11 +13,7 @@
   });
 
   $: {
-      score = 0;
-      col.forEach(diceValue => {
-          const occurences = col.filter(d => d === diceValue).length;
-          score += diceValue * occurences;
-      });
+      score = getColumnScore(col);
       if (score !== previousScore) {
           animateScore();
       }

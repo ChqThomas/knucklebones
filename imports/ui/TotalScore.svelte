@@ -1,6 +1,7 @@
 <script lang="ts">
   import Board from "/imports/api/rooms/schema/Board";
   import {tweened} from "svelte/motion";
+  import {getTotalScore} from "/imports/api/scoring";
 
   export let board: Board;
   let score = 0;
@@ -10,18 +11,8 @@
       duration: 70,
   });
 
-  $: cols = [board.col1, board.col2, board.col3];
-
   $: {
-      score = 0;
-
-      cols.forEach(col => {
-          col.forEach(diceValue => {
-              const occurences = col.filter(d => d === diceValue).length;
-              score += diceValue * occurences;
-          });
-      })
-
+      score = getTotalScore(board);
       if (score !== previousScore) {
           animateScore();
       }
@@ -38,7 +29,7 @@
 
 </script>
 
-<div class="flex items-center justify-center text-3xl" style="margin-left:{$animation}px">
+<div class="flex items-center justify-center text-3xl" style="transform: translateX({$animation}px)">
     {score}
 </div>
 

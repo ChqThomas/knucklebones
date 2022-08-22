@@ -1,40 +1,56 @@
 <script lang="ts">
-    import Player from "/imports/api/rooms/schema/Player";
-    import Players from "./Players.svelte";
-    import {player, opponent, colyseus, gameState, roomState, room} from "./stores";
-    import {dndzone} from "svelte-dnd-action";
-    import {onDestroy, onMount} from "svelte";
     import _ from "lodash";
+    import {onDestroy, onMount} from "svelte";
+    import {fade} from "svelte/transition";
+    import {navigate} from "svelte-routing";
+    import {tweened} from "svelte/motion";
+    import {bounceOut} from "svelte/easing";
+
+    // TYPES
     import type {JoinOptions} from "/imports/api/rooms/commands/onJoin";
     import {MyRoomState} from "/imports/api/rooms/schema/MyRoomState";
+    import Player from "/imports/api/rooms/schema/Player";
     import {States} from "/imports/api/machine";
-    import {deserialize} from "serializr";
-    import {navigate} from "svelte-routing";
-    import Timer from "/imports/ui/Timer.svelte";
-    import GameState from "/imports/ui/GameState.svelte";
+
+    // STORES
+    import {colyseus, gameLoaded, gameState, playerDiceAdded, room, roomState} from "./stores";
+
+    // COMPONENTS
+    import {Confetti} from "svelte-confetti"
     import Dice from "/imports/ui/Dice.svelte";
     import Board from "/imports/ui/Board.svelte";
-    import TotalScore from "/imports/ui/TotalScore.svelte";
+    import PlayerInfos from "/imports/ui/PlayerInfos.svelte";
+    import WaitingScreen from "/imports/ui/WaitingScreen.svelte";
 
+
+    // PROPS
     export let roomId: string;
+
+    // LOCAL VARS
     let playerId = null;
     let opponentId = null;
     let currentPlayer: Player | null = null;
     let currentOpponent: Player | null = null;
-    let playerBoard = [];
-    let opponentBoard = [];
+    let playerBoard: any = [];
+    let opponentBoard: any = [];
     let currentTurn = null;
-    let playerTeam = [];
-    let opponentTeam = [];
     let board = new Map();
-    let team = new Map();
     let timer = 0;
     let roomPlayers;
     let myTurn = false;
     let opponentTurn = false;
+    let ready = false;
+    let winnerId = null;
+    let animateRoll = tweened(0, { duration: 1500, easing: bounceOut });
+    let animateRollOpponent = tweened(0, { duration: 1500, easing: bounceOut });
+    let playerPlate: HTMLElement;
+    let opponentPlate: HTMLElement;
+    let playerDiceEL: HTMLElement;
 
+    // REACTIVE STATEMENTS
     $: currentPlayer = playerId && $roomState && roomPlayers? roomPlayers.get(playerId) : null;
     $: currentOpponent = currentPlayer && currentPlayer.opponentId && roomPlayers ? roomPlayers.get(currentPlayer.opponentId) : null;
+    $: winner = winnerId && roomPlayers ? roomPlayers.get(winnerId) : null;
 
     $: playerBoard = currentPlayer && currentPlayer.board.toJSON();
     $: opponentBoard = currentOpponent && currentOpponent.board.toJSON();
@@ -42,8 +58,12 @@
     $: opponentTurn = currentOpponent ? currentTurn === currentOpponent.id : false;
 
     onMount(async () => {
+
+        $gameLoaded = false;
+        $gameState = States.Created;
+
         const joinOptions: JoinOptions = {
-            username: "Chakipox" + _.random(0, 100),
+            username: "Player",
         }
 
         let existingSessionId = localStorage.getItem(`sessionId-${roomId}`);
@@ -65,32 +85,52 @@
             }
         }
 
+        // @ts-ignore
         $room.state.listen("gameState", (newGameState: States) => {
             $gameState = newGameState;
         });
 
+        // @ts-ignore
         $room.state.listen("currentPlayer", (newCurrentPlayer: string) => {
             currentTurn = newCurrentPlayer;
+            $playerDiceAdded = false;
         });
 
+        // @ts-ignore
+        $room.state.listen("winner", (newWinner: string) => {
+            winnerId = newWinner;
+        });
 
         // Initial state;
         $room.onStateChange.once((state) => {
             $roomState = state;
+            setTimeout(() => {
+                $gameLoaded = true;
+            }, 500);
         });
 
-        $room.state.players.onChange = (player, key) => {
-            console.log(player, "have changes at", key);
-        };
-
         $room.state.players.onAdd = (player, key) => {
-            console.log("add player", key);
             if (player.id === playerId) {
                 console.log("player connected", player);
+
+                // @ts-ignore
+                player.listen("animateRoll", (startAnimate) => {
+                    if (startAnimate && playerPlate) {
+                        let middle = playerPlate.getBoundingClientRect().width / 2 - 35;
+                        animateRoll.set(_.random(middle - 50, middle + 50));
+                    }
+                });
+            } else {
+                // @ts-ignore
+                player.listen("animateRoll", (startAnimate) => {
+                    if (startAnimate && opponentPlate) {
+                        let middle = opponentPlate.getBoundingClientRect().width / 2 - 35;
+                        animateRollOpponent.set(_.random(middle - 50, middle + 50));
+                    }
+                });
             }
 
             player.onChange = () => {
-                console.log("player.onChange");
                 roomPlayers = $room.state.players;
             }
 
@@ -98,36 +138,17 @@
         };
 
         $room.state.players.onRemove = (player, key) => {
-            console.log("remove player", key);
             roomPlayers = $room.state.players;
         };
 
         $room.onMessage("connected", ({ sessionId }) => {
             playerId = sessionId;
             localStorage.setItem(`sessionId-${roomId}`, sessionId);
-
-            console.log("connected", sessionId);
         });
     })
 
-    function newRound() {
-        $room.send("newRound");
-    }
-
-    function sleep(ms) {
-        return new Promise((resolve) => setTimeout(resolve, ms ?? 200));
-    }
-
-    async function attack() {
-        $room?.send("fight");
-    }
-
-    async function startGame() {
-        $room?.send("startGame");
-    }
-
-    async function endGame() {
-        $room?.send("endGame");
+    function playAgain() {
+        $room.send("playAgain");
     }
 
     onDestroy(() => {
@@ -137,50 +158,66 @@
 
 </script>
 
-{#if $room && $roomState && currentPlayer}
-    <div class="w-full h-[50px]">
-        <button class="btn-custom" on:click={() => startGame()}>Start game</button>
-        <!-- <button class="btn-custom" on:click={() => endGame()}>End game</button>
-        <button class="btn-custom" on:click={() => newRound()}>New round</button>
-        <button class="btn-custom" on:click={() => attack()}>Attaque</button>-->
-    </div>
-    <div class="flex">
-        <div>
-            <Dice value="{myTurn ? currentPlayer.dice : 0}"/>
-            <TotalScore board="{playerBoard}"/>
-        </div>
+{#if $room && $roomState && currentPlayer && currentOpponent && [States.End, States.Play].includes($gameState)}
+    <div class="flex flex-grow">
         <div class="flex flex-col flex-grow">
-
-
-            <!-- <Timer room="{$room}"/>
-            <GameState {currentOpponent}/>--->
-
-
-
-            <!-- <div class="flex mb-3">
-                <div>
+            <PlayerInfos player="{currentPlayer}" board="{playerBoard}"/>
+            <div class="grow-[1] flex flex-col items-center justify-center">
+                <div bind:this={playerPlate} class="plate flex flex-col items-center justify-center relative border-primary" >
+                    {#if myTurn && !$playerDiceAdded}
+                        <Dice value="{currentPlayer.dice}" style="position: absolute; left: {$animateRoll}px; top: 0px" animate="{false}"/>
+                    {/if}
                 </div>
-                <div class="flex-grow"></div>
-                <Players players="{roomPlayers}" {currentPlayer}/>
-            </div>--->
-
-
-
-            <div class="flex items-center justify-center flex-col gap-4">
+            </div>
+        </div>
+        <div class="flex flex-col h-full">
+            <div class="flex flex-grow items-center justify-center flex-col gap-4">
                 {#if opponentBoard}
-                    <Board board="{opponentBoard}" mirrored="{true}"/>
+                    <Board board="{opponentBoard}" mirrored="{true}" playerPlate="{opponentPlate}" opponentDice="{currentPlayer.dice}"/>
                 {/if}
+                {#key winner}
+                    <div class="flex flex-col items-center justify-center flex-grow" in:fade>
+                        {#if winner}
+                            <Confetti x={[-1.5, -0.5]} y={[0.25, -0.25]} />
+                            <Confetti x={[0.5, 1.5]} y={[0.25, -0.25]} />
+                            <Confetti cone amount=80 x={[-1, 1]} y={[0.2, 0.8]} delay={[500, 550]} />
+                            <div class="mb-2">The winner is <span class="font-bold">{winner.username}</span></div>
+                            <div class="btn btn-secondary" on:click|preventDefault={() => playAgain()}>Play again</div>
+                        {/if}
+                    </div>
+                {/key}
                 {#if playerBoard}
-                    <Board board="{playerBoard}"/>
+                    <div class="mb-6">
+                        <Board board="{playerBoard}" ready="{currentPlayer.ready}" {playerPlate} opponentDice="{currentOpponent.dice}"/>
+                    </div>
                 {/if}
             </div>
         </div>
-        <div>
+        <div class="flex flex-col flex-grow">
             {#if currentOpponent}
-                <Dice value="{opponentTurn ? currentOpponent.dice : 0}"/>
-                <TotalScore board="{opponentBoard}"/>
+                <div class="grow-[1] flex flex-col items-center justify-center">
+                    <div bind:this={opponentPlate} class="plate opponent-plate flex flex-col items-center justify-center relative border-primary">
+                        {#if opponentTurn && !$playerDiceAdded}
+                            <Dice value="{opponentTurn ? currentOpponent.dice : 0}" style="position: absolute; left: {$animateRollOpponent}px; top: 0px" animate="{false}"/>
+                        {/if}
+                    </div>
+                </div>
+                <PlayerInfos player="{currentOpponent}" board="{opponentBoard}" reversed="{true}"/>
             {/if}
         </div>
     </div>
-
+{:else if $gameState === States.Waiting}
+    <WaitingScreen/>
 {/if}
+
+<style>
+    .plate {
+        background: hsl(var(--p) / 0.3);
+        border-radius: 12px;
+        border-style: solid;
+        border-width: 1px;
+        padding: 10px;
+        width: 50%;
+        height: 100px;
+    }
+</style>

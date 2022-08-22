@@ -1,15 +1,34 @@
 <script lang="ts">
-  import {fade} from "svelte/transition";
+  import {fly, scale} from "svelte/transition";
+  import {playerDiceAdded} from "/imports/ui/stores";
 
   export let value: 0|1|2|3|4|5|6;
   export let occurences = 1;
+  export let animate = true;
+  export let playerPlate: HTMLElement|null = null;
+  let el;
 
-  console.log(Array(value));
+  // Animate from player to position in board
+  const animationIn = (node, args) => {
+    if (args.animate && playerPlate) {
+      let playerDice = <HTMLElement> playerPlate.querySelector(".face");
+      if (playerDice) {
+        const dx = playerDice.getBoundingClientRect().left - el.getBoundingClientRect().left;
+        const dy = playerDice.getBoundingClientRect().top - el.getBoundingClientRect().top;
+        $playerDiceAdded = true;
+        return fly(node, {
+          x: dx,
+          y: dy,
+          opacity: 1
+        });
+      }
+    }
+  };
 
 </script>
 
 {#key value === 0 ? 0 : 1}
-  <div class="face occurences-{occurences}" in:fade>
+  <div bind:this={el} style={$$props.style} class="face occurences-{occurences}" in:animationIn={{ animate }}>
     {#each Array(value) as pip}
       <span class="pip"></span>
     {/each}
@@ -27,8 +46,8 @@
     flex: 0 0 auto;
     margin: 16px;
     padding: 10px;
-    width: 104px;
-    height: 104px;
+    width: 70px;
+    height: 70px;
 
     background-color: #e7e7e7;
     box-shadow: inset 0 5px white, inset 0 -5px #bbb, inset 5px 0 #d7d7d7, inset -5px 0 #d7d7d7;
@@ -49,8 +68,8 @@
     display: block;
     align-self: center;
     justify-self: center;
-    width: 22px;
-    height: 22px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background-color: #333;
     box-shadow: inset 0 3px #111, inset 0 -3px #555;

@@ -5,8 +5,12 @@
   import { navigate, Link } from "svelte-routing";
 
   let allRooms: RoomAvailable[] = [];
+  let joinedRoom = null;
+
+  $: multiplayerRooms = allRooms.filter(room => room.metadata.solo === false && (joinedRoom === null || joinedRoom.id != room.roomId));
 
   onMount(async () => {
+    joinedRoom = null;
     const lobby = await $colyseus.joinOrCreate("lobby");
 
     lobby.onMessage("rooms", (rooms) => {
@@ -30,9 +34,9 @@
 
   async function createRoom(solo = false) {
     // We create the room and leave it immediately.
-    const room = await $colyseus.create("game", { solo });
-    await room.leave(false);
-    navigate(`game/${room.id}`, { replace: true });
+    joinedRoom = await $colyseus.create("game", { solo });
+    await joinedRoom.leave(false);
+    navigate(`game/${joinedRoom.id}`, { replace: true });
   }
 </script>
 
@@ -47,7 +51,7 @@
       </thead>
       <tbody>
       <!-- row 1 -->
-      {#each allRooms as room}
+      {#each multiplayerRooms as room}
         <tr>
           <td>{room.roomId}</td>
           <td><Link class="btn btn-secondary" to="/game/{room.roomId}">Join game</Link></td>

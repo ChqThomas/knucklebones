@@ -23,6 +23,23 @@ export default class Board extends Schema {
         this[`col${index}`] = Object.assign(new Array(3).fill(0), filteredColumn);
     }
 
+    removeDicesFromColumnInPlace(diceValue: DiceValue, index: ColumnIndex) {
+        let removed = false;
+        this[`col${index}`].forEach((d, i) => {
+            if (d === diceValue) {
+                this[`col${index}`][i] = 0;
+                if (this[`col${index}`][i+1] !== 0) {
+                    removed = true;
+                }
+            }
+        });
+        return removed;
+    }
+
+    sortDices(index: ColumnIndex) {
+        this[`col${index}`] = Object.assign(new Array(3).fill(0), this[`col${index}`].filter(d => d !== 0))
+    }
+
     getAllValues() {
         return [...this.col1.values(), ...this.col2.values(), ...this.col3.values()]
     }

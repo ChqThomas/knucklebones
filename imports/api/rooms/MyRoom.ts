@@ -1,17 +1,17 @@
+import type {Client} from "colyseus";
 import {Room} from "colyseus";
-import type { Client } from "colyseus";
 import {MyRoomState} from "./schema/MyRoomState";
 import {States} from "/imports/api/machine";
-import { Dispatcher } from "@colyseus/command";
+import {Dispatcher} from "@colyseus/command";
 import * as _ from "lodash";
 
 import type {JoinOptions} from "./commands/onJoin";
-import type Player from "/imports/api/rooms/schema/Player";
 
 // Commands
 import {OnJoinCommand} from "/imports/api/rooms/commands/onJoin";
 import {addBot, playTurn} from "/imports/api/botGenerator";
 import {AddToBoard} from "/imports/api/rooms/commands/addToBoard";
+import {getWinner} from "/imports/api/scoring";
 
 type CreateOptions = {
   solo: boolean
@@ -25,10 +25,14 @@ export class MyRoom extends Room<MyRoomState> {
 
   async onCreate (options: CreateOptions) {
     this.roomId = await this.generateRoomId();
+    await this.setMetadata({ ...options });
     this.setState(new MyRoomState());
 
     if (options.solo) {
       addBot(this);
+      this.state.gameState = States.Play;
+    } else {
+      this.state.gameState = States.Waiting;
     }
 
     this.registerMessages();
@@ -123,9 +127,15 @@ export class MyRoom extends Room<MyRoomState> {
     })
   }
 
-  // The game is ended if only one player has more than 0 hp
+  // The game is ended if one of the players board is full
   isGameEnded() {
     return this.getPlayersArray().some(p => p.board.isFull());
+  }
+
+  handleGameEnd() {
+    let winner = getWinner(this.getPlayersArray());
+    this.state.winner = winner.id;
+    this.state.gameState = States.End;
   }
 
   getPlayersArray() {
@@ -133,22 +143,39 @@ export class MyRoom extends Room<MyRoomState> {
   }
 
   async nextTurn() {
+
+    if (this.isGameEnded()) {
+        return this.handleGameEnd();
+    }
+
     if (this.state.currentPlayer === "") {
       let randPlayer = _.sample(this.getPlayersArray());
       if (randPlayer) {
         this.state.currentPlayer = randPlayer.id;
       }
     } else {
+      await new Promise(resolve => setTimeout(resolve, 1000));
       this.state.currentPlayer = this.state.currentPlayer === this.getPlayersArray()[0].id ? this.getPlayersArray()[1].id : this.getPlayersArray()[0].id;
     }
 
     const currentPlayer = this.state.getCurrentPlayer();
     if (currentPlayer) {
       await currentPlayer.pickDice();
+      currentPlayer.ready = true;
       if (currentPlayer.isBot) {
         await playTurn(this, currentPlayer);
       }
     }
+  }
+
+  async startGame() {
+    this.state.players.forEach(p => {
+      p.reset();
+    });
+    this.state.currentPlayer = "";
+    this.state.winner = "";
+    this.state.gameState = States.Play;
+    await this.nextTurn();
   }
 
   registerMessages() {
@@ -166,16 +193,14 @@ export class MyRoom extends Room<MyRoomState> {
             index: value.index
           });
           break
+        case "playAgain":
+          if (this.state.gameState === States.End) {
+            this.startGame();
+          }
+          break
       }
 
     });
-
-    this.onMessage("startGame", async () => {
-      // this.state.gameState = States.Preparation;
-      console.log("start game");
-      await this.nextTurn();
-    });
-
   }
 
 

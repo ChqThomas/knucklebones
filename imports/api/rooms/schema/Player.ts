@@ -13,12 +13,16 @@ export default class Player extends Schema {
     @type(Board) board: Board = new Board();
     @type("number") updateHash: number = 0;
     @type("number") dice: DiceValue = 1;
+    @type("boolean") ready = false;
+    @type("boolean") animateRoll = false;
     client: Client|null = null;
     isBot = false;
 
     async pickDice() {
+        this.animateRoll = true;
         await this.animateDice();
         this.dice = this.rollDice();
+        this.animateRoll = false;
     }
 
     rollDice(): DiceValue {
@@ -34,5 +38,10 @@ export default class Player extends Schema {
 
     addDiceToColumn(index: ColumnIndex) {
         return this.board.addToColumn(this.dice, index);
+    }
+
+    reset() {
+        this.board = new Board();
+        this.ready = false;
     }
 }

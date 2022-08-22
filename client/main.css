@@ -4,7 +4,6 @@
 
 body {
   font-family: sans-serif;
-  /*background: #9ca3af;*/
 }
 
 .btn-custom {
@@ -12,5 +11,18 @@ body {
 }
 
 .dice-location {
-  @apply h-[100px] w-[100px] flex items-center justify-center border-solid border-2 border-gray-300
+  @apply h-[80px] w-[100px] flex items-center justify-center border-solid border-2;
+  background: hsl(var(--a) / 0.15);
+  border-radius: 6px;
+  border-color: hsl(var(--a) / 0.15);
+}
+
+.dice-column:hover.ready {
+  background: hsl(var(--s) / 0.3);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.centered {
+  @apply flex items-center justify-center
 }

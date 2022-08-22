@@ -43,6 +43,9 @@ export class PlayerStore extends ReactiveStore<Player>{
 
 export let player = new PlayerStore(new Player("Player"));
 export let opponent = new PlayerStore(new Player("Opponent"));
-export let gameState: Writable<States> = writable(States.Lobby);
+export let gameState: Writable<States> = writable(States.Created);
 export let roomState: Writable<MyRoomState> = writable();
 export let room: Writable<Room<MyRoomState>> = writable(null);
+export let playerDiceAdded: Writable<boolean> = writable(false);
+export let opponentDiceAdded: Writable<boolean> = writable(false);
+export let gameLoaded: Writable<boolean> = writable(false);
